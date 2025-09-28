@@ -93,10 +93,10 @@ results = inspector.process_directory(
 
 | Model | Description | Embedding | Status |
 |-------|-------------|-----------|--------|
-| CLIP | ✅ | ✅ | Ready |
-| BLIP-2 | ✅ | ✅ | Coming Soon |
-| LLaVA | ✅ | ✅ | Coming Soon |
-| MiniGPT-4 | ✅ | ✅ | Coming Soon |
+| CLIP | Yes | Yes | Ready |
+| BLIP-2 | Yes | Yes | Coming Soon |
+| LLaVA | Yes | Yes | Coming Soon |
+| MiniGPT-4 | Yes | Yes | Coming Soon |
 
 ## CLI Commands
 
