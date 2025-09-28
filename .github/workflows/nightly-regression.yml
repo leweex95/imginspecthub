@@ -96,7 +96,7 @@ jobs:
         username: ${{ secrets.SMTP_USERNAME }}
         password: ${{ secrets.SMTP_PASSWORD }}
         subject: '[imginspecthub] Nightly Regression Tests Failed'
-        to: ${{ secrets.SMTP_TO }}
+        to: ${{ secrets.SMTP_USERNAME }}
         from: 'GitHub Actions <${{ secrets.SMTP_USERNAME }}>'
         html_body: |
           <h2>Nightly Regression Tests Failed</h2>
