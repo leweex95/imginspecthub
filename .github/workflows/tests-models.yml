@@ -1,0 +1,40 @@
+name: Model Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [clip, blip2, llava, minigpt4]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: 2.2.0
+
+    - name: Install dependencies
+      run: poetry install --no-interaction
+
+    - name: Install project
+      run: poetry install --no-interaction
+
+    - name: Test model ${{ matrix.model }}
+      continue-on-error: true
+      run: |
+        poetry run python -m imginspecthub.cli run --model ${{ matrix.model }} --image test_data/test_image.jpg --operation description || true

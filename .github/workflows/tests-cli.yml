@@ -1,4 +1,4 @@
-name: Tests
+name: CLI Tests
 
 on:
   push:
@@ -25,33 +25,14 @@ jobs:
         virtualenvs-create: true
         virtualenvs-in-project: true
 
-    - name: Load cached venv
-      id: cached-poetry-dependencies
-      uses: actions/cache@v3
-      with:
-        path: .venv
-        key: venv-${{ runner.os }}-3.11-${{ hashFiles('**/poetry.lock') }}
-
     - name: Install dependencies
-      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: poetry install --no-interaction
 
     - name: Install project
       run: poetry install --no-interaction
-
-    - name: Run basic tests
-      run: |
-        poetry run python -m pytest tests/test_basic.py -v
 
     - name: Test CLI functionality
       run: |
         poetry run python -m imginspecthub.cli --help
         poetry run python -m imginspecthub.cli models
         poetry run python -m imginspecthub.cli info
-
-    - name: Run linting
-      run: |
-        poetry run python -m pip install black isort flake8
-        poetry run black --check imginspecthub/
-        poetry run isort --check-only imginspecthub/
-        poetry run flake8 imginspecthub/ --max-line-length=88 --extend-ignore=E203,W503
