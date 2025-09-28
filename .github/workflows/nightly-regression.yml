@@ -93,11 +93,11 @@ jobs:
       with:
         server_address: smtp.gmail.com
         server_port: 465
-        username: ${{ secrets.SMTP_USERNAME }}
+        username: ${{ secrets.SMTP_USER }}
         password: ${{ secrets.SMTP_PASSWORD }}
         subject: '[imginspecthub] Nightly Regression Tests Failed'
         to: ${{ secrets.SMTP_USERNAME }}
-        from: 'GitHub Actions <${{ secrets.SMTP_USERNAME }}>'
+        from: 'GitHub Actions <${{ secrets.SMTP_USER }}>'
         html_body: |
           <h2>Nightly Regression Tests Failed</h2>
           <p>The nightly regression tests for imginspecthub have failed.</p>
