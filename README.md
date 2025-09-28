@@ -1,5 +1,12 @@
 # imginspecthub
 
+[![Tests](https://github.com/leweex95/imginspecthub/workflows/Tests/badge.svg)](https://github.com/leweex95/imginspecthub/actions/workflows/test.yml)
+[![Nightly Regression Tests](https://github.com/leweex95/imginspecthub/workflows/Nightly%20Regression%20Tests/badge.svg)](https://github.com/leweex95/imginspecthub/actions/workflows/nightly-regression.yml)
+[![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://python.org)
+[![Poetry](https://img.shields.io/badge/poetry-2.2.0-blue.svg)](https://python-poetry.org/)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 A unified hub for running and comparing image understanding models (BLIP-2, MiniGPT-4, LLaVA, CLIP, etc.) through a simple CLI and API.
 
 ## Features

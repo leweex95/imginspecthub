@@ -5,9 +5,6 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
-  schedule:
-    # Run nightly regression tests at 2 AM UTC
-    - cron: '0 2 * * *'
 
 jobs:
   test:
@@ -92,62 +89,3 @@ jobs:
         poetry run black --check imginspecthub/
         poetry run isort --check-only imginspecthub/
         poetry run flake8 imginspecthub/ --max-line-length=88 --extend-ignore=E203,W503
-
-  nightly-regression:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule'
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        version: 2.2.0
-
-    - name: Install dependencies
-      run: poetry install --no-interaction
-
-    - name: Create test images
-      run: |
-        poetry run python -c "
-        from PIL import Image, ImageDraw
-        import os
-        
-        # Create test directory
-        os.makedirs('test_data', exist_ok=True)
-        
-        # Create multiple test images
-        for i, color in enumerate(['lightblue', 'lightgreen', 'lightcoral']):
-            img = Image.new('RGB', (300, 200), color=color)
-            draw = ImageDraw.Draw(img)
-            draw.text((50, 50), f'Test Image {i+1}', fill='black')
-            draw.rectangle([75, 75, 225, 125], outline='red', width=3)
-            img.save(f'test_data/dummy_image_{i+1}.jpg')
-        
-        print('Created dummy test images')
-        "
-
-    - name: Run comprehensive tests
-      run: |
-        poetry run python -m pytest tests/ -v --tb=short
-
-    - name: Test batch processing simulation
-      run: |
-        # Test batch command parsing (will fail on model loading but tests CLI)
-        poetry run python -m imginspecthub.cli batch --model clip --directory test_data --operations description --output results.json || true
-
-    - name: Upload test artifacts
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: test-artifacts
-        path: |
-          test_data/
-          results.json
-        retention-days: 1
