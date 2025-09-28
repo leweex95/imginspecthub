@@ -98,12 +98,12 @@ results = inspector.process_directory(
 
 ## Supported Models
 
-| Model | Description | Embedding | Status |
-|-------|-------------|-----------|--------|
-| CLIP | Yes | Yes | Ready |
-| BLIP-2 | Yes | Yes | Coming Soon |
-| LLaVA | Yes | Yes | Coming Soon |
-| MiniGPT-4 | Yes | Yes | Coming Soon |
+| Model | Description | Embedding | Visual Q&A | Status |
+|-------|-------------|-----------|-----------|--------|
+| CLIP | Yes | Yes | Limited | Ready |
+| BLIP-2 | Yes | Yes | Yes | **Ready** |
+| LLaVA | Yes | Yes | Yes | **Ready** |
+| MiniGPT-4 | Yes | Yes | Coming Soon | Coming Soon |
 
 ## CLI Commands
 
@@ -144,6 +144,34 @@ List all available models.
 
 ### `imginspect info`
 Show system and device information.
+
+## Visual Question Answering
+
+### Financial Chart Analysis
+The tool now supports sophisticated visual question answering for financial chart analysis:
+
+```bash
+# Analyze chart patterns
+imginspect run --model llava --image chart.jpg --prompt "does this image show a chart pattern with increasing trend and a double bottom at the end of the movement?"
+
+# Technical analysis
+imginspect run --model blip2 --image chart.jpg --prompt "what type of chart pattern is shown in this image?"
+
+# Market trend analysis
+imginspect run --model llava --image chart.jpg --prompt "is there a bullish or bearish trend visible in this chart?"
+```
+
+### General Visual Q&A
+```bash
+# Object detection and description
+imginspect run --model llava --image photo.jpg --prompt "what objects can you see in this image?"
+
+# Scene understanding
+imginspect run --model blip2 --image scene.jpg --prompt "describe the setting and atmosphere of this image"
+
+# Specific questions
+imginspect run --model llava --image document.jpg --prompt "what text is visible in this image?"
+```
 
 ## Configuration
 

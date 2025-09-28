@@ -16,7 +16,7 @@ class BLIP2Model(BaseModel):
     """BLIP-2 model for image captioning and understanding."""
     
     def __init__(self, model_name: str = "blip2", device: Optional[str] = None,
-                 model_id: str = "Salesforce/blip2-opt-2.7b"):
+                 model_id: str = "Salesforce/blip2-flan-t5-xl"):
         """
         Initialize BLIP-2 model.
         
@@ -33,32 +33,57 @@ class BLIP2Model(BaseModel):
         try:
             print(f"Loading BLIP-2 model {self.model_id} on {self.device}...")
             
-            # Mock implementation - in real implementation, you would do:
-            # from transformers import Blip2Processor, Blip2ForConditionalGeneration
-            # self.processor = Blip2Processor.from_pretrained(self.model_id)
-            # self.model = Blip2ForConditionalGeneration.from_pretrained(self.model_id)
-            # self.model.to(self.device)
-            # self.model.eval()
-            
-            # For now, create mock objects
-            self.processor = MockBLIP2Processor()
-            self.model = MockBLIP2Model()
+            # Try to load real BLIP-2 model first
+            try:
+                from transformers import Blip2Processor, Blip2ForConditionalGeneration
+                
+                # Load processor and model
+                self.processor = Blip2Processor.from_pretrained(self.model_id)
+                self.model = Blip2ForConditionalGeneration.from_pretrained(
+                    self.model_id,
+                    torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+                    device_map="auto" if self.device == "cuda" else None
+                )
+                
+                if self.device != "cuda":
+                    self.model = self.model.to(self.device)
+                
+                self.model.eval()
+                print(f"Real BLIP-2 model loaded successfully on {self.device}")
+                
+            except Exception as model_error:
+                print(f"Could not load real BLIP-2 model ({model_error}), trying smaller variant...")
+                
+                # Try smaller BLIP-2 model
+                try:
+                    from transformers import Blip2Processor, Blip2ForConditionalGeneration
+                    self.model_id = "Salesforce/blip2-opt-2.7b-coco"
+                    
+                    self.processor = Blip2Processor.from_pretrained(self.model_id)
+                    self.model = Blip2ForConditionalGeneration.from_pretrained(
+                        self.model_id,
+                        torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
+                    )
+                    
+                    self.model = self.model.to(self.device)
+                    self.model.eval()
+                    print(f"BLIP-2 smaller variant loaded successfully on {self.device}")
+                    
+                except Exception as fallback_error:
+                    print(f"Could not load any BLIP-2 variant ({fallback_error})")
+                    raise RuntimeError(f"Failed to load any BLIP-2 model variant. Original error: {model_error}. Fallback error: {fallback_error}")
             
             self._is_loaded = True
-            print(f"BLIP-2 model loaded successfully on {self.device}")
             
         except Exception as e:
             print(f"Error loading BLIP-2 model: {e}")
-            # Try CPU fallback
-            if self.device != "cpu":
+            # Try CPU fallback only for device issues, not model loading issues
+            if self.device != "cpu" and "device" in str(e).lower():
                 print("Attempting CPU fallback...")
                 self.device = "cpu"
-                self.processor = MockBLIP2Processor()
-                self.model = MockBLIP2Model()
-                self._is_loaded = True
-                print("BLIP-2 model loaded successfully on CPU (fallback)")
+                self._load_model()  # Recursively try on CPU
             else:
-                raise
+                raise RuntimeError(f"Failed to load BLIP-2 model: {e}")
     
     def get_description(self, image: Union[str, Image.Image], 
                        prompt: Optional[str] = None) -> str:
@@ -77,25 +102,56 @@ class BLIP2Model(BaseModel):
         
         pil_image = self.process_image(image)
         
-        # Mock implementation - generates a plausible description
-        # In real implementation, you would use the actual model
-        descriptions = [
-            "a detailed view of a scene with various objects and elements",
-            "a high-quality photograph showing interesting visual content",
-            "an image containing multiple visual elements arranged in the frame",
-            "a clear photograph with good composition and lighting",
-            "a scene captured with attention to detail and visual appeal"
-        ]
-        
-        # Use image dimensions to create some variability
-        width, height = pil_image.size
-        description_idx = (width + height) % len(descriptions)
-        base_description = descriptions[description_idx]
-        
-        if prompt:
-            return f"Following the prompt '{prompt}': {base_description}"
-        
-        return f"BLIP-2 generated: {base_description}"
+        # Real BLIP-2 implementation
+        try:
+            # Prepare input text for conditional generation
+            if prompt:
+                # For question answering, use the prompt as conditioning
+                inputs = self.processor(images=pil_image, text=prompt, return_tensors="pt")
+            else:
+                # For image captioning, use no text input
+                inputs = self.processor(images=pil_image, return_tensors="pt")
+            
+            # Move inputs to the correct device
+            inputs = {k: v.to(self.model.device) if isinstance(v, torch.Tensor) else v 
+                     for k, v in inputs.items()}
+            
+            # Generate response
+            with torch.no_grad():
+                if prompt:
+                    # For prompted generation (question answering)
+                    output = self.model.generate(
+                        **inputs,
+                        max_new_tokens=128,
+                        do_sample=True,
+                        temperature=0.7,
+                        num_beams=3,
+                        early_stopping=True
+                    )
+                else:
+                    # For image captioning
+                    output = self.model.generate(
+                        **inputs,
+                        max_new_tokens=50,
+                        num_beams=5,
+                        early_stopping=True
+                    )
+            
+            # Decode the response
+            generated_text = self.processor.decode(output[0], skip_special_tokens=True)
+            
+            # Clean up the generated text
+            if prompt and prompt.lower() in generated_text.lower():
+                # Remove the input prompt from the output if it's repeated
+                response = generated_text.replace(prompt, "").strip()
+            else:
+                response = generated_text.strip()
+            
+            return response if response else "Unable to generate description"
+            
+        except Exception as e:
+            print(f"Error in BLIP-2 generation: {e}")
+            return f"Error generating response: {str(e)}"
     
     def get_embedding(self, image: Union[str, Image.Image]) -> np.ndarray:
         """
@@ -112,49 +168,50 @@ class BLIP2Model(BaseModel):
         
         pil_image = self.process_image(image)
         
-        # Mock implementation - generates a deterministic embedding based on image
-        # In real implementation, you would extract features from the vision encoder
-        width, height = pil_image.size
-        
-        # Create a deterministic embedding based on image properties
-        np.random.seed(width * height % 1000)  # Deterministic but varies by image
-        embedding = np.random.normal(0, 1, (1, 768))  # BLIP-2 uses 768-dim embeddings
-        
-        # Normalize the embedding
-        embedding = embedding / np.linalg.norm(embedding)
-        
-        return embedding.squeeze()
-
-
-class MockBLIP2Processor:
-    """Mock BLIP-2 processor for testing without internet connection."""
-    
-    def __call__(self, images=None, text=None, return_tensors=None, **kwargs):
-        """Mock processor call."""
-        if images is not None:
-            # Return mock processed inputs
-            return {
-                "pixel_values": torch.randn(1, 3, 224, 224),
-                "input_ids": torch.tensor([[1, 2, 3, 4, 5]]) if text else None
-            }
-        return {}
-
-
-class MockBLIP2Model:
-    """Mock BLIP-2 model for testing without internet connection."""
-    
-    def generate(self, **kwargs):
-        """Mock generation."""
-        return torch.tensor([[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]])
-    
-    def get_image_features(self, **kwargs):
-        """Mock image feature extraction."""
-        return torch.randn(1, 768)  # Mock 768-dimensional features
-    
-    def eval(self):
-        """Mock eval mode."""
-        return self
-    
-    def to(self, device):
-        """Mock device transfer."""
-        return self
+        # Real BLIP-2 implementation - extract vision features
+        try:
+            # Prepare inputs for vision encoder
+            inputs = self.processor(images=pil_image, return_tensors="pt")
+            
+            # Move inputs to the correct device
+            inputs = {k: v.to(self.model.device) if isinstance(v, torch.Tensor) else v 
+                     for k, v in inputs.items()}
+            
+            # Extract image features from vision encoder
+            with torch.no_grad():
+                # BLIP-2 has a vision model component
+                if hasattr(self.model, 'vision_model'):
+                    vision_outputs = self.model.vision_model(**inputs)
+                    image_features = vision_outputs.last_hidden_state
+                elif hasattr(self.model, 'qformer'):
+                    # Extract features through Q-Former
+                    image_embeds = self.model.vision_model(inputs['pixel_values'])
+                    image_features = self.model.qformer(
+                        query_embeds=self.model.query_tokens.expand(image_embeds.shape[0], -1, -1),
+                        encoder_hidden_states=image_embeds,
+                        encoder_attention_mask=torch.ones(image_embeds.shape[:-1], dtype=torch.long, device=image_embeds.device)
+                    ).last_hidden_state
+                else:
+                    # Generic approach - try to extract features
+                    outputs = self.model(**inputs, output_hidden_states=True)
+                    image_features = outputs.hidden_states[-1]
+                
+                # Pool the features (mean pooling over sequence length)
+                if len(image_features.shape) > 2:
+                    embedding = image_features.mean(dim=1)  # Average over sequence length
+                else:
+                    embedding = image_features
+                
+                # Convert to numpy and normalize
+                embedding = embedding.cpu().numpy().squeeze()
+                if len(embedding.shape) == 0:
+                    embedding = embedding.reshape(1)
+                
+                # Normalize the embedding
+                embedding = embedding / np.linalg.norm(embedding)
+                
+                return embedding
+                
+        except Exception as e:
+            print(f"Error extracting BLIP-2 embeddings: {e}")
+            raise RuntimeError(f"Failed to extract embeddings from BLIP-2 model: {e}")
