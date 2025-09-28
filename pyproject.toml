@@ -1,0 +1,43 @@
+[tool.poetry]
+name = "imginspecthub"
+version = "0.1.0"
+description = "A unified hub for running and comparing image understanding models"
+authors = ["imginspecthub contributors"]
+license = "GPL-3.0-or-later"
+readme = "README.md"
+packages = [{include = "imginspecthub"}]
+
+[tool.poetry.scripts]
+imginspect = "imginspecthub.cli:main"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+click = "^8.1.0"
+torch = "^2.0.0"
+transformers = "^4.30.0"
+pillow = "^10.0.0"
+requests = "^2.31.0"
+numpy = "^1.24.0"
+tqdm = "^4.65.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+black = "^23.7.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
