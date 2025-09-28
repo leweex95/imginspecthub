@@ -157,8 +157,7 @@ Show system and device information.
 
 The tool automatically selects the best available device:
 1. CUDA (if available)
-2. MPS (Apple Silicon, if available)
-3. CPU (fallback)
+2. CPU (fallback)
 
 You can override with `--device` or `IMGINSPECTHUB_DEVICE`.
 
