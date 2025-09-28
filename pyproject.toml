@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "imginspecthub"
-version = "0.1.0"
+version = "0.2.0"
 description = "A unified hub for running and comparing image understanding models"
 authors = ["imginspecthub contributors"]
 license = "GPL-3.0-or-later"
