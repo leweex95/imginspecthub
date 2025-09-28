@@ -11,7 +11,7 @@ packages = [{include = "imginspecthub"}]
 imginspect = "imginspecthub.cli:main"
 
 [tool.poetry.dependencies]
-python = "^3.8.1"
+python = "^3.11"
 click = "^8.1.0"
 torch = "^2.0.0"
 transformers = "^4.30.0"
@@ -30,14 +30,14 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py311']
 
 [tool.isort]
 profile = "black"
 line_length = 88
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
