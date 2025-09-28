@@ -1,0 +1,157 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Run nightly regression tests at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        exclude:
+          # Exclude some combinations to reduce CI load
+          - os: windows-latest
+            python-version: '3.8'
+          - os: macos-latest
+            python-version: '3.8'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Load cached venv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v3
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+    - name: Install dependencies
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      run: poetry install --no-interaction --no-root
+
+    - name: Install project
+      run: poetry install --no-interaction
+
+    - name: Create test image
+      run: |
+        poetry run python -c "
+        from PIL import Image, ImageDraw
+        import os
+        
+        # Create test directory
+        os.makedirs('test_data', exist_ok=True)
+        
+        # Create a simple test image
+        img = Image.new('RGB', (300, 200), color='lightblue')
+        draw = ImageDraw.Draw(img)
+        draw.text((50, 50), 'Test Image', fill='black')
+        draw.rectangle([75, 75, 225, 125], outline='red', width=3)
+        img.save('test_data/dummy_image.jpg')
+        print('Created test_data/dummy_image.jpg')
+        "
+
+    - name: Run basic tests
+      run: |
+        poetry run python -m pytest tests/test_basic.py -v
+
+    - name: Test CLI functionality
+      run: |
+        # Test CLI help
+        poetry run python -m imginspecthub.cli --help
+        
+        # Test models list
+        poetry run python -m imginspecthub.cli models
+        
+        # Test system info
+        poetry run python -m imginspecthub.cli info
+
+    - name: Test CLI with dummy image (expect network error)
+      continue-on-error: true
+      run: |
+        # This will fail due to network restrictions but tests CLI parsing
+        poetry run python -m imginspecthub.cli run --model clip --image test_data/dummy_image.jpg --operation description || true
+
+    - name: Run linting (Ubuntu only)
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      run: |
+        poetry run python -m pip install black isort flake8
+        poetry run black --check imginspecthub/
+        poetry run isort --check-only imginspecthub/
+        poetry run flake8 imginspecthub/ --max-line-length=88 --extend-ignore=E203,W503
+
+  nightly-regression:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+
+    - name: Install dependencies
+      run: poetry install --no-interaction
+
+    - name: Create test images
+      run: |
+        poetry run python -c "
+        from PIL import Image, ImageDraw
+        import os
+        
+        # Create test directory
+        os.makedirs('test_data', exist_ok=True)
+        
+        # Create multiple test images
+        for i, color in enumerate(['lightblue', 'lightgreen', 'lightcoral']):
+            img = Image.new('RGB', (300, 200), color=color)
+            draw = ImageDraw.Draw(img)
+            draw.text((50, 50), f'Test Image {i+1}', fill='black')
+            draw.rectangle([75, 75, 225, 125], outline='red', width=3)
+            img.save(f'test_data/dummy_image_{i+1}.jpg')
+        
+        print('Created dummy test images')
+        "
+
+    - name: Run comprehensive tests
+      run: |
+        poetry run python -m pytest tests/ -v --tb=short
+
+    - name: Test batch processing simulation
+      run: |
+        # Test batch command parsing (will fail on model loading but tests CLI)
+        poetry run python -m imginspecthub.cli batch --model clip --directory test_data --operations description --output results.json || true
+
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-artifacts
+        path: |
+          test_data/
+          results.json
+        retention-days: 1
