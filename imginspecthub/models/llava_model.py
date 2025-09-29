@@ -16,7 +16,7 @@ class LLaVAModel(BaseModel):
     """LLaVA (Large Language and Vision Assistant) model."""
     
     def __init__(self, model_name: str = "llava", device: Optional[str] = None,
-                 model_id: str = "microsoft/llava-1.5-7b-hf"):
+                 model_id: str = "unsloth/llava-1.5-7b-hf"):
         """
         Initialize LLaVA model.
         
@@ -35,11 +35,11 @@ class LLaVAModel(BaseModel):
             
             # Try to load real LLaVA model first
             try:
-                from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
+                from transformers import LlavaProcessor, LlavaForConditionalGeneration
                 
                 # Load processor and model
-                self.processor = LlavaNextProcessor.from_pretrained(self.model_id)
-                self.model = LlavaNextForConditionalGeneration.from_pretrained(
+                self.processor = LlavaProcessor.from_pretrained(self.model_id)
+                self.model = LlavaForConditionalGeneration.from_pretrained(
                     self.model_id,
                     torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
                     low_cpu_mem_usage=True,
@@ -53,15 +53,14 @@ class LLaVAModel(BaseModel):
                 print(f"Real LLaVA model loaded successfully on {self.device}")
                 
             except Exception as model_error:
-                print(f"Could not load real LLaVA model ({model_error}), trying LLaVA 1.5...")
+                print(f"Could not load LLaVA processor ({model_error}), trying LlavaNext...")
                 
-                # Try alternative model
+                # Try LlavaNext which might be required for this model
                 try:
-                    from transformers import LlavaProcessor, LlavaForConditionalGeneration
-                    self.model_id = "microsoft/llava-1.5-7b-hf"
+                    from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration
                     
-                    self.processor = LlavaProcessor.from_pretrained(self.model_id)
-                    self.model = LlavaForConditionalGeneration.from_pretrained(
+                    self.processor = LlavaNextProcessor.from_pretrained(self.model_id)
+                    self.model = LlavaNextForConditionalGeneration.from_pretrained(
                         self.model_id,
                         torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
                         low_cpu_mem_usage=True,
@@ -72,10 +71,10 @@ class LLaVAModel(BaseModel):
                         self.model = self.model.to(self.device)
                     
                     self.model.eval()
-                    print(f"LLaVA 1.5 model loaded successfully on {self.device}")
+                    print(f"LLaVA-Next model loaded successfully on {self.device}")
                     
                 except Exception as fallback_error:
-                    print(f"Could not load LLaVA 1.5 either ({fallback_error})")
+                    print(f"Could not load LLaVA-Next either ({fallback_error})")
                     raise RuntimeError(f"Failed to load any LLaVA model variant. Original error: {model_error}. Fallback error: {fallback_error}")
             
             self._is_loaded = True
@@ -109,31 +108,14 @@ class LLaVAModel(BaseModel):
         
         # Real LLaVA implementation
         try:
-            # Prepare the conversation format that LLaVA expects
+            # Simple direct approach that should work with LLaVA 1.5
             if prompt:
-                conversation = [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "image"},
-                            {"type": "text", "text": prompt}
-                        ]
-                    }
-                ]
+                text_prompt = prompt
             else:
-                conversation = [
-                    {
-                        "role": "user", 
-                        "content": [
-                            {"type": "image"},
-                            {"type": "text", "text": "Describe this image in detail."}
-                        ]
-                    }
-                ]
+                text_prompt = "Describe this image in detail."
             
-            # Apply chat template and process inputs
-            prompt_text = self.processor.apply_chat_template(conversation, add_generation_prompt=True)
-            inputs = self.processor(images=pil_image, text=prompt_text, return_tensors="pt")
+            # Process inputs - try the simplest approach first
+            inputs = self.processor(images=pil_image, text=text_prompt, return_tensors="pt")
             
             # Move inputs to the correct device
             inputs = {k: v.to(self.model.device) if isinstance(v, torch.Tensor) else v 
@@ -143,22 +125,17 @@ class LLaVAModel(BaseModel):
             with torch.no_grad():
                 output = self.model.generate(
                     **inputs,
-                    max_new_tokens=256,
-                    do_sample=True,
-                    temperature=0.7,
+                    max_new_tokens=128,
+                    do_sample=False,  # Use greedy decoding for more stable results
                     pad_token_id=self.processor.tokenizer.eos_token_id
                 )
             
-            # Decode the response
-            generated_text = self.processor.decode(output[0], skip_special_tokens=True)
+            # Decode the response (skip the input tokens)
+            input_length = inputs["input_ids"].shape[1]
+            generated_tokens = output[0][input_length:]
+            response = self.processor.decode(generated_tokens, skip_special_tokens=True)
             
-            # Extract just the assistant's response
-            if "assistant\n" in generated_text:
-                response = generated_text.split("assistant\n")[-1].strip()
-            else:
-                response = generated_text.strip()
-            
-            return response
+            return response.strip()
             
         except Exception as e:
             print(f"Error in LLaVA generation: {e}")

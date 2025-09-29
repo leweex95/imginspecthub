@@ -45,7 +45,12 @@ pip install -e .
 
 #### Basic image description
 ```bash
-imginspect run --model clip --image photo.jpg --operation description
+imginspect run --model blip2 --image photo.jpg --operation description
+```
+
+#### Visual question answering (recommended)
+```bash
+imginspect run --model blip2 --image photo.jpg --prompt "What does this image show?"
 ```
 
 #### Get image embeddings
@@ -60,7 +65,7 @@ imginspect run --model clip --image photo1.jpg --image2 photo2.jpg --operation s
 
 #### Batch processing
 ```bash
-imginspect batch --model clip --directory ./images --operations description,embedding --output results.json
+imginspect batch --model blip2 --directory ./images --operations description,embedding --output results.json
 ```
 
 #### Compare multiple models
@@ -73,18 +78,22 @@ imginspect compare --models clip,blip2 --image photo.jpg --operations descriptio
 ```python
 from imginspecthub import ImageInspector
 
-# Initialize inspector
-inspector = ImageInspector(model_name="clip", device="auto")
+# Initialize inspector with working model
+inspector = ImageInspector(model_name="blip2", device="auto")
 
-# Get description
+# Visual question answering (primary feature)
+response = inspector.get_description("photo.jpg", "What does this image show?")
+print(f"AI Response: {response}")
+
+# Get basic description without prompt
 description = inspector.get_description("photo.jpg")
 print(f"Description: {description}")
 
-# Get embedding
+# Get embedding for similarity search
 embedding = inspector.get_embedding("photo.jpg")
 print(f"Embedding shape: {embedding.shape}")
 
-# Calculate similarity
+# Calculate similarity between images
 similarity = inspector.get_similarity("photo1.jpg", "photo2.jpg")
 print(f"Similarity: {similarity:.3f}")
 
@@ -101,9 +110,14 @@ results = inspector.process_directory(
 | Model | Description | Embedding | Visual Q&A | Status |
 |-------|-------------|-----------|-----------|--------|
 | CLIP | Yes | Yes | Limited | Ready |
-| BLIP-2 | Yes | Yes | Yes | **Ready** |
-| LLaVA | Yes | Yes | Yes | **Ready** |
+| BLIP-2 | Yes | Yes | Yes | **✅ Working** |
+| LLaVA | Yes | Yes | Yes | ⚠️ **Compatibility Issues** |
 | MiniGPT-4 | Yes | Yes | Coming Soon | Coming Soon |
+
+### Model Status Details:
+- **BLIP-2**: Fully functional for visual question answering and image description
+- **LLaVA**: Model loading works but has input format compatibility issues (needs fixing)
+- **CLIP**: Working with mock fallback (real model requires authentication)
 
 ## CLI Commands
 
@@ -147,33 +161,73 @@ Show system and device information.
 
 ## Visual Question Answering
 
+### Real-World Example with Budapest Street Scene
+
+The tool provides sophisticated visual question answering capabilities. Here's a real example using a Budapest street image:
+
+```bash
+# Basic image description
+imginspect run --model blip2 --image budapest_street.png
+# Output: "two pictures of a street with a bicycle and a bus stop"
+
+# Specific question about the image
+imginspect run --model blip2 --image budapest_street.png --prompt "What does this image show?"
+# Output: "a street with a bicycle and a phone booth"
+
+# Architecture-focused analysis
+imginspect run --model blip2 --image budapest_street.png --prompt "Describe the architecture in this image"
+# Output: Analysis of architectural elements visible in the scene
+```
+
 ### Financial Chart Analysis
-The tool now supports sophisticated visual question answering for financial chart analysis:
+The tool supports sophisticated visual question answering for financial chart analysis:
 
 ```bash
 # Analyze chart patterns
-imginspect run --model llava --image chart.jpg --prompt "does this image show a chart pattern with increasing trend and a double bottom at the end of the movement?"
+imginspect run --model blip2 --image chart.jpg --prompt "does this image show a chart pattern with increasing trend and a double bottom at the end of the movement?"
 
 # Technical analysis
 imginspect run --model blip2 --image chart.jpg --prompt "what type of chart pattern is shown in this image?"
 
 # Market trend analysis
-imginspect run --model llava --image chart.jpg --prompt "is there a bullish or bearish trend visible in this chart?"
+imginspect run --model blip2 --image chart.jpg --prompt "is there a bullish or bearish trend visible in this chart?"
 ```
 
 ### General Visual Q&A
 ```bash
 # Object detection and description
-imginspect run --model llava --image photo.jpg --prompt "what objects can you see in this image?"
+imginspect run --model blip2 --image photo.jpg --prompt "what objects can you see in this image?"
 
 # Scene understanding
 imginspect run --model blip2 --image scene.jpg --prompt "describe the setting and atmosphere of this image"
 
 # Specific questions
-imginspect run --model llava --image document.jpg --prompt "what text is visible in this image?"
+imginspect run --model blip2 --image document.jpg --prompt "what text is visible in this image?"
 ```
 
+### ⚠️ Known Issues
+
+**LLaVA Model**: Currently has compatibility issues with input format processing. The model loads successfully but encounters errors during inference. This will be fixed in a future update. Use BLIP-2 for reliable visual question answering.
+
 ## Configuration
+
+### HuggingFace Authentication
+
+For BLIP-2 and other advanced models, you need to authenticate with HuggingFace:
+
+1. Create account at [https://huggingface.co](https://huggingface.co)
+2. Generate token at [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+3. Login via CLI:
+   ```bash
+   huggingface-cli login
+   # Enter your token when prompted
+   ```
+
+### Model Requirements
+
+- **BLIP-2**: Requires HuggingFace authentication (~16GB download)
+- **LLaVA**: Requires HuggingFace authentication (~14GB download, compatibility issues)
+- **CLIP**: Works with mock fallback, authentication needed for real model
 
 ### Environment Variables
 
