@@ -24,24 +24,17 @@ def cli():
 
 @cli.command()
 @click.option("--model", "-m", required=True, 
-              help="Model to use (e.g., clip, blip2, llava, minigpt4)")
+              help="Model to use (e.g., blip2, llava)")
 @click.option("--image", "-i", required=True, type=click.Path(exists=True),
               help="Path to input image")
 @click.option("--operation", "-o", default="description",
-              type=click.Choice(["description", "embedding", "similarity"]),
+              type=click.Choice(["description"]),
               help="Operation to perform")
 @click.option("--prompt", "-p", help="Text prompt for guided generation")
 @click.option("--device", "-d", help="Device to use (cuda, cpu, auto)")
-@click.option("--output", help="Output file for results")
-@click.option("--format", "output_format", default="json",
-              type=click.Choice(["json", "csv"]),
-              help="Output format")
 @click.option("--log/--no-log", default=False, help="Enable logging")
-@click.option("--image2", type=click.Path(exists=True),
-              help="Second image for similarity comparison")
 def run(model: str, image: str, operation: str, prompt: Optional[str],
-        device: Optional[str], output: Optional[str], output_format: str,
-        log: bool, image2: Optional[str]):
+        device: Optional[str], log: bool):
     """Run image understanding model on a single image."""
     
     # Validate model
@@ -51,18 +44,13 @@ def run(model: str, image: str, operation: str, prompt: Optional[str],
         click.echo(f"Available models: {', '.join(available_models)}", err=True)
         sys.exit(1)
     
-    # Validate similarity operation
-    if operation == "similarity" and not image2:
-        click.echo("Error: --image2 required for similarity operation", err=True)
-        sys.exit(1)
-    
     try:
         # Initialize inspector
         inspector = ImageInspector(
             model_name=model,
             device=device,
             log_results_to_file=log,
-            log_file=output if log and output else None
+            log_file=None
         )
         
         click.echo(f"Using model: {model}")
@@ -73,37 +61,6 @@ def run(model: str, image: str, operation: str, prompt: Optional[str],
         if operation == "description":
             result = inspector.get_description(image, prompt)
             click.echo(f"\nDescription: {result}")
-            
-        elif operation == "embedding":
-            embedding = inspector.get_embedding(image)
-            click.echo(f"\nEmbedding shape: {embedding.shape}")
-            click.echo(f"Embedding (first 10 values): {embedding.flatten()[:10].tolist()}")
-            result = embedding.tolist()
-            
-        elif operation == "similarity":
-            similarity = inspector.get_similarity(image, image2)
-            click.echo(f"\nSimilarity score: {similarity:.4f}")
-            result = similarity
-        
-        # Save output if specified
-        if output and not log:
-            from .utils.logging import log_results, create_result_entry
-            
-            result_entry = create_result_entry(
-                model_name=model,
-                image_path=image,
-                operation=operation,
-                result=result,
-                execution_time=0.0,  # Not tracked in simple mode
-                device=inspector.device,
-                additional_info={
-                    "prompt": prompt,
-                    "image2": image2 if image2 else None
-                }
-            )
-            
-            log_results(result_entry, output, output_format)
-            click.echo(f"Results saved to: {output}")
         
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
@@ -116,7 +73,7 @@ def run(model: str, image: str, operation: str, prompt: Optional[str],
 @click.option("--directory", "-d", required=True, type=click.Path(exists=True),
               help="Directory containing images")
 @click.option("--operations", "-o", default="description",
-              help="Comma-separated operations (description,embedding)")
+              help="Comma-separated operations (description)")
 @click.option("--output", required=True, help="Output file for results")
 @click.option("--format", "output_format", default="json",
               type=click.Choice(["json", "csv"]),
@@ -133,7 +90,7 @@ def batch(model: str, directory: str, operations: str, output: str,
     
     # Parse operations
     operation_list = [op.strip() for op in operations.split(',')]
-    valid_operations = ["description", "embedding"]
+    valid_operations = ["description"]
     
     for op in operation_list:
         if op not in valid_operations:
