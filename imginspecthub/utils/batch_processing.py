@@ -67,8 +67,6 @@ def process_single_image(model: BaseModel,
         try:
             if operation == "description":
                 result = model.get_description(image_path, prompt)
-            elif operation == "embedding":
-                result = model.get_embedding(image_path).tolist()  # Convert to list for JSON
             else:
                 raise ValueError(f"Unknown operation: {operation}")
             

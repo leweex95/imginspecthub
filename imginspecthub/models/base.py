@@ -49,41 +49,6 @@ class BaseModel(ABC):
         """
         pass
     
-    @abstractmethod
-    def get_embedding(self, image: Union[str, Image.Image]) -> np.ndarray:
-        """
-        Get image embedding.
-        
-        Args:
-            image: Image path or PIL Image
-            
-        Returns:
-            Image embedding as numpy array
-        """
-        pass
-    
-    def get_similarity_score(self, image1: Union[str, Image.Image], 
-                           image2: Union[str, Image.Image]) -> float:
-        """
-        Get similarity score between two images.
-        
-        Args:
-            image1: First image path or PIL Image
-            image2: Second image path or PIL Image
-            
-        Returns:
-            Similarity score between 0 and 1
-        """
-        emb1 = self.get_embedding(image1)
-        emb2 = self.get_embedding(image2)
-        
-        # Cosine similarity
-        dot_product = np.dot(emb1.flatten(), emb2.flatten())
-        norm1 = np.linalg.norm(emb1.flatten())
-        norm2 = np.linalg.norm(emb2.flatten())
-        
-        return float(dot_product / (norm1 * norm2))
-    
     def process_image(self, image: Union[str, Image.Image]) -> Image.Image:
         """
         Process image input to PIL Image.
@@ -111,7 +76,5 @@ class BaseModel(ABC):
             "name": self.model_name,
             "device": self.device,
             "loaded": self._is_loaded,
-            "supports_description": True,
-            "supports_embedding": True,
-            "supports_similarity": True
+            "supports_description": True
         }

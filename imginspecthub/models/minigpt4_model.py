@@ -105,50 +105,6 @@ class MiniGPT4Model(BaseModel):
             return f"MiniGPT-4: {starter} {base_description}"
         
         return f"MiniGPT-4: {base_description}"
-    
-    def get_embedding(self, image: Union[str, Image.Image]) -> np.ndarray:
-        """
-        Get image embedding using MiniGPT-4.
-        
-        Args:
-            image: Image path or PIL Image
-            
-        Returns:
-            Image embedding as numpy array
-        """
-        if not self._is_loaded:
-            self.load_model()
-        
-        pil_image = self.process_image(image)
-        
-        # Mock implementation - generates embedding from visual features
-        # In real implementation, you would extract features from the Q-Former or visual encoder
-        width, height = pil_image.size
-        
-        # Create a deterministic embedding with some complexity
-        seed = (width * 3 + height * 7) % 5000
-        np.random.seed(seed)
-        
-        # MiniGPT-4 typically uses features from BLIP-2's Q-Former (768 dimensions)
-        embedding = np.random.normal(0, 1, (1, 768))
-        
-        # Add some structure based on image properties
-        aspect_ratio = width / height
-        if aspect_ratio > 1.3:  # Wide image
-            embedding[:, :192] *= 1.3  # Emphasize first quarter
-        elif aspect_ratio < 0.8:  # Tall image
-            embedding[:, 192:384] *= 1.3  # Emphasize second quarter
-        else:  # Square-ish
-            embedding[:, 384:576] *= 1.3  # Emphasize third quarter
-        
-        # Size-based modification
-        if total_pixels := width * height > 100000:  # Large image
-            embedding[:, 576:] *= 1.2  # Emphasize last quarter
-        
-        # Normalize the embedding
-        embedding = embedding / np.linalg.norm(embedding)
-        
-        return embedding.squeeze()
 
 
 class MockMiniGPT4Processor:
